@@ -28,9 +28,7 @@
 
 #define _LARGEFILE64_SOURCE
 
-#include <asm/types.h>
 #include <errno.h>
-#include <linux/fs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* memset() */
@@ -50,6 +48,13 @@
 struct selabel_handle;
 
 #include "make_f2fs.h"
+
+#if defined(__OpenBSD__) || defined(__APPLE__) && defined(__MACH__)
+#define lseek64 lseek
+#define ftruncate64 ftruncate
+#define mmap64 mmap
+#define off64_t off_t
+#endif
 
 #ifdef USE_MINGW
 
@@ -75,13 +80,18 @@ struct selabel_handle;
 #define S_ISVTX 0001000
 
 #else
+#define O_BINARY 0
+#endif
 
+#define SELINUX
+#if defined(__OpenBSD__) || defined(USE_MINGW)
+#undef SELINUX
+#endif
+
+#ifdef SELINUX
 #include <selinux/selinux.h>
 #include <selinux/label.h>
 #include <selinux/android.h>
-
-#define O_BINARY 0
-
 #endif
 
 struct f2fs_configuration config;

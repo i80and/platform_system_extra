@@ -60,11 +60,19 @@
 
 #else
 
+#define O_BINARY 0
+
+#endif
+
+#if defined(USE_MINGW) || defined(__OpenBSD__)
+#else
+#define SELINUX
+#endif
+
+#ifdef SELINUX
 #include <selinux/selinux.h>
 #include <selinux/label.h>
 #include <selinux/android.h>
-
-#define O_BINARY 0
 
 #endif
 
@@ -98,7 +106,7 @@ static u32 build_default_directory_structure(const char *dir_path,
 	inode_set_permissions(inode, dentries.mode,
 		dentries.uid, dentries.gid, dentries.mtime);
 
-#ifndef USE_MINGW
+#ifdef SELINUX
 	if (sehnd) {
 		char *path = NULL;
 		char *secontext = NULL;
@@ -117,7 +125,7 @@ static u32 build_default_directory_structure(const char *dir_path,
 	return root_inode;
 }
 
-#ifndef USE_MINGW
+#ifdef SELINUX
 /* Read a local directory and create the same tree in the generated filesystem.
    Calls itself recursively with each directory in the given directory.
    full_path is an absolute or relative path, with a trailing slash, to the
@@ -202,7 +210,7 @@ static u32 build_directory_structure(const char *full_path, const char *dir_path
 			error("can't set android permissions - built without android support");
 #endif
 		}
-#ifndef USE_MINGW
+#ifdef SELINUX
 		if (sehnd) {
 			if (selabel_lookup(sehnd, &dentries[i].secon, dentries[i].path, stat.st_mode) < 0) {
 				error("cannot lookup security context for %s", dentries[i].path);
@@ -586,7 +594,7 @@ int make_ext4fs_internal(int fd, const char *_directory,
 	if (info.feat_compat & EXT4_FEATURE_COMPAT_RESIZE_INODE)
 		ext4_create_resize_inode();
 
-#ifdef USE_MINGW
+#ifndef SELINUX
 	// Windows needs only 'create an empty fs image' functionality
 	assert(!directory);
 	root_inode_num = build_default_directory_structure(mountpoint, sehnd);
@@ -601,7 +609,7 @@ int make_ext4fs_internal(int fd, const char *_directory,
 	root_mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 	inode_set_permissions(root_inode_num, root_mode, 0, 0, 0);
 
-#ifndef USE_MINGW
+#ifdef SELINUX
 	if (sehnd) {
 		char *secontext = NULL;
 
